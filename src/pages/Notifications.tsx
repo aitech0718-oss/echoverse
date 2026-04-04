@@ -1,0 +1,68 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import Navbar from '@/components/Navbar';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Check, CheckCheck } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+const Notifications = () => {
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('notifications')
+      .select('*, actor:actor_id(display_name, avatar_url)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setNotifications(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchNotifications(); }, [user]);
+
+  const markRead = async (id: string) => {
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+  };
+
+  const markAllRead = async () => {
+    if (!user) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">Notifications</h1>
+          <Button variant="ghost" size="sm" onClick={markAllRead}><CheckCheck className="h-4 w-4 mr-1" />Mark all read</Button>
+        </div>
+        {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div> :
+        notifications.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No notifications yet</CardContent></Card> :
+        notifications.map(n => (
+          <Card key={n.id} className={`animate-fade-in transition-colors ${!n.is_read ? 'border-primary/30 bg-primary/5' : ''}`}>
+            <CardContent className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9"><AvatarFallback className="bg-primary text-primary-foreground text-xs">{n.actor?.display_name?.[0] || '?'}</AvatarFallback></Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm"><span className="font-medium">{n.actor?.display_name}</span> {n.message}</p>
+                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}</p>
+              </div>
+              {!n.is_read && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => markRead(n.id)}><Check className="h-4 w-4" /></Button>}
+            </CardContent>
+          </Card>
+        ))}
+      </main>
+    </div>
+  );
+};
+
+export default Notifications;
