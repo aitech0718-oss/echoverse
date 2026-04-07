@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 const NewsFeed = () => {
@@ -73,7 +73,7 @@ const NewsFeed = () => {
 
     const { error } = await supabase.from('posts').insert({ author_id: user.id, content: content.trim(), image_url });
     setPosting(false);
-    if (error) { toast.error('Failed to create post'); return; }
+    if (error) { toast.error('Failed to send your echo'); return; }
     setContent('');
     setImageFile(null);
     setImagePreview(null);
@@ -86,30 +86,36 @@ const NewsFeed = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        <Card>
+        {/* Echo Composer */}
+        <Card className="shadow-md border-primary/10">
           <CardContent className="pt-4">
             <div className="flex gap-3">
-              <Avatar className="h-10 w-10">
+              <Avatar className="h-10 w-10 ring-2 ring-primary/20">
                 <AvatarImage src={profile?.avatar_url} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-3">
-                <Textarea value={content} onChange={e => setContent(e.target.value)} placeholder="What's on your mind?" className="resize-none min-h-[60px]" />
+                <Textarea value={content} onChange={e => setContent(e.target.value)} placeholder="What's echoing in your mind?" className="resize-none min-h-[60px] border-0 bg-muted/50 focus-visible:ring-primary/30" />
+                {/* Draft Preview */}
                 {imagePreview && (
-                  <div className="relative inline-block">
-                    <img src={imagePreview} alt="Preview" className="rounded-lg max-h-48 object-cover" />
-                    <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={() => { setImageFile(null); setImagePreview(null); }}>
+                  <div className="relative inline-block rounded-xl overflow-hidden border-2 border-dashed border-primary/30 p-1">
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className="text-xs font-semibold bg-primary/90 text-primary-foreground px-2 py-0.5 rounded-full">Draft Preview</span>
+                    </div>
+                    <img src={imagePreview} alt="Draft preview" className="rounded-lg max-h-48 object-cover" />
+                    <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-6 w-6 z-10" onClick={() => { setImageFile(null); setImagePreview(null); }}>
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>
-                    <ImagePlus className="h-4 w-4 mr-1" />Photo
+                  <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} className="text-muted-foreground hover:text-primary">
+                    <ImagePlus className="h-4 w-4 mr-1" />Attach
                   </Button>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-                  <Button size="sm" onClick={handlePost} disabled={posting || (!content.trim() && !imageFile)}>
-                    {posting ? 'Posting...' : 'Post'}
+                  <Button size="sm" onClick={handlePost} disabled={posting || (!content.trim() && !imageFile)} className="echo-gradient text-primary-foreground border-0 hover:opacity-90 gap-1">
+                    <Send className="h-3.5 w-3.5" />
+                    {posting ? 'Echoing...' : 'Echo'}
                   </Button>
                 </div>
               </div>
@@ -120,7 +126,7 @@ const NewsFeed = () => {
         {loading ? (
           <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
         ) : posts.length === 0 ? (
-          <Card><CardContent className="py-12 text-center text-muted-foreground">No posts yet. Be the first to share something!</CardContent></Card>
+          <Card className="shadow-md"><CardContent className="py-12 text-center text-muted-foreground">No echoes yet. Be the first to send one into the verse!</CardContent></Card>
         ) : (
           posts.map(post => <PostCard key={post.id} post={post} onUpdate={fetchPosts} />)
         )}

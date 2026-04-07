@@ -23,22 +23,22 @@ const Profile = () => {
   const isOwn = user?.id === id;
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchData = async () => {
       const { data: p } = await supabase.from('profiles').select('*').eq('user_id', id).single();
       setProfileData(p);
 
-      const { data: posts } = await supabase
+      const { data: postsData } = await supabase
         .from('posts')
         .select('*, profiles:author_id(display_name, avatar_url)')
         .eq('author_id', id!)
         .order('created_at', { ascending: false });
 
-      if (posts && user) {
+      if (postsData && user) {
         const { data: userLikes } = await supabase.from('likes').select('post_id').eq('user_id', user.id);
         const likedIds = new Set(userLikes?.map(l => l.post_id));
-        setPosts(posts.map(p => ({ ...p, user_liked: likedIds.has(p.id) })));
+        setPosts(postsData.map(p => ({ ...p, user_liked: likedIds.has(p.id) })));
       } else {
-        setPosts(posts || []);
+        setPosts(postsData || []);
       }
 
       if (user && !isOwn) {
@@ -51,28 +51,28 @@ const Profile = () => {
       }
       setLoading(false);
     };
-    if (id) fetch();
+    if (id) fetchData();
   }, [id, user]);
 
   const sendFriendRequest = async () => {
     if (!user || !id) return;
     await supabase.from('friends').insert({ requester_id: user.id, addressee_id: id });
-    await supabase.from('notifications').insert({ user_id: id, actor_id: user.id, type: 'friend_request', message: 'sent you a friend request' });
+    await supabase.from('notifications').insert({ user_id: id, actor_id: user.id, type: 'friend_request', message: 'wants to resonate with you' });
     setFriendStatus('pending');
-    toast.success('Friend request sent!');
+    toast.success('Resonance request sent!');
   };
 
   const removeFriend = async () => {
     if (!user || !id) return;
     await supabase.from('friends').delete().or(`and(requester_id.eq.${user.id},addressee_id.eq.${id}),and(requester_id.eq.${id},addressee_id.eq.${user.id})`);
     setFriendStatus(null);
-    toast.success('Friend removed');
+    toast.success('Disconnected');
   };
 
   const blockUser = async () => {
     if (!user || !id) return;
     await supabase.from('blocked_users').insert({ blocker_id: user.id, blocked_id: id });
-    toast.success('User blocked');
+    toast.success('User muted from your verse');
   };
 
   if (loading) return <div className="min-h-screen bg-background"><Navbar /><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></div>;
@@ -83,11 +83,11 @@ const Profile = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        <Card>
-          <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/5 rounded-t-lg" />
+        <Card className="shadow-md overflow-hidden">
+          <div className="h-32 echo-gradient opacity-80" />
           <CardContent className="relative pt-0 -mt-12">
             <div className="flex items-end gap-4 mb-4">
-              <Avatar className="h-24 w-24 border-4 border-card">
+              <Avatar className="h-24 w-24 border-4 border-card shadow-lg">
                 <AvatarImage src={profileData?.avatar_url} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-2xl">{initials}</AvatarFallback>
               </Avatar>
@@ -97,12 +97,12 @@ const Profile = () => {
               </div>
               <div className="flex gap-2">
                 {isOwn ? (
-                  <Button size="sm" variant="outline" onClick={() => navigate('/profile/edit')}><Edit className="h-4 w-4 mr-1" />Edit</Button>
+                  <Button size="sm" variant="outline" onClick={() => navigate('/profile/edit')}><Edit className="h-4 w-4 mr-1" />Edit Verse</Button>
                 ) : (
                   <>
-                    {friendStatus === 'accepted' && <Button size="sm" variant="outline" onClick={removeFriend}><UserMinus className="h-4 w-4 mr-1" />Unfriend</Button>}
+                    {friendStatus === 'accepted' && <Button size="sm" variant="outline" onClick={removeFriend}><UserMinus className="h-4 w-4 mr-1" />Disconnect</Button>}
                     {friendStatus === 'pending' && <Button size="sm" variant="outline" disabled>Pending</Button>}
-                    {!friendStatus && <Button size="sm" onClick={sendFriendRequest}><UserPlus className="h-4 w-4 mr-1" />Add Friend</Button>}
+                    {!friendStatus && <Button size="sm" className="echo-gradient text-primary-foreground border-0" onClick={sendFriendRequest}><UserPlus className="h-4 w-4 mr-1" />Resonate</Button>}
                     <Button size="sm" variant="ghost" onClick={blockUser}><Ban className="h-4 w-4" /></Button>
                   </>
                 )}
@@ -117,8 +117,9 @@ const Profile = () => {
           </CardContent>
         </Card>
 
+        <h2 className="text-lg font-semibold">Echoes</h2>
         {posts.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No posts yet</CardContent></Card>
+          <Card><CardContent className="py-8 text-center text-muted-foreground">No echoes yet</CardContent></Card>
         ) : (
           posts.map(post => <PostCard key={post.id} post={post} onUpdate={() => {}} />)
         )}

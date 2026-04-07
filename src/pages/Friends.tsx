@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ const Friends = () => {
     if (!user) return;
     const { data: accepted } = await supabase
       .from('friends')
-      .select('*, requester:requester_id(display_name, avatar_url, user_id:user_id), addressee:addressee_id(display_name, avatar_url, user_id:user_id)')
+      .select('*, requester:requester_id(display_name, avatar_url, user_id), addressee:addressee_id(display_name, avatar_url, user_id)')
       .eq('status', 'accepted')
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
     
@@ -31,7 +31,7 @@ const Friends = () => {
 
     const { data: pending } = await supabase
       .from('friends')
-      .select('*, requester:requester_id(display_name, avatar_url, user_id:user_id)')
+      .select('*, requester:requester_id(display_name, avatar_url, user_id)')
       .eq('status', 'pending')
       .eq('addressee_id', user.id);
     setIncoming(pending || []);
@@ -42,8 +42,8 @@ const Friends = () => {
 
   const acceptRequest = async (id: string, requesterId: string) => {
     await supabase.from('friends').update({ status: 'accepted' }).eq('id', id);
-    await supabase.from('notifications').insert({ user_id: requesterId, actor_id: user!.id, type: 'friend_accepted', message: 'accepted your friend request' });
-    toast.success('Friend request accepted!');
+    await supabase.from('notifications').insert({ user_id: requesterId, actor_id: user!.id, type: 'friend_accepted', message: 'is now resonating with you' });
+    toast.success('Resonance established!');
     fetchFriends();
   };
 
@@ -55,7 +55,7 @@ const Friends = () => {
 
   const removeFriend = async (id: string) => {
     await supabase.from('friends').delete().eq('id', id);
-    toast.success('Friend removed');
+    toast.success('Disconnected');
     fetchFriends();
   };
 
@@ -69,8 +69,8 @@ const Friends = () => {
     if (!user) return;
     const { error } = await supabase.from('friends').insert({ requester_id: user.id, addressee_id: userId });
     if (error?.code === '23505') { toast.info('Request already sent'); return; }
-    await supabase.from('notifications').insert({ user_id: userId, actor_id: user.id, type: 'friend_request', message: 'sent you a friend request' });
-    toast.success('Friend request sent!');
+    await supabase.from('notifications').insert({ user_id: userId, actor_id: user.id, type: 'friend_request', message: 'wants to resonate with you' });
+    toast.success('Resonance request sent!');
   };
 
   return (
@@ -79,14 +79,14 @@ const Friends = () => {
       <main className="max-w-2xl mx-auto px-4 py-6">
         <Tabs defaultValue="friends">
           <TabsList className="mb-4">
-            <TabsTrigger value="friends">Friends</TabsTrigger>
+            <TabsTrigger value="friends">Resonators</TabsTrigger>
             <TabsTrigger value="requests">Requests {incoming.length > 0 && `(${incoming.length})`}</TabsTrigger>
-            <TabsTrigger value="search">Find People</TabsTrigger>
+            <TabsTrigger value="search">Discover</TabsTrigger>
           </TabsList>
 
           <TabsContent value="friends">
             {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div> :
-            friends.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No friends yet. Search for people to connect with!</CardContent></Card> :
+            friends.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No resonators yet. Discover people to connect with!</CardContent></Card> :
             <div className="grid gap-3">{friends.map(f => (
               <Card key={f.id} className="animate-fade-in">
                 <CardContent className="flex items-center gap-3 py-3">
@@ -99,7 +99,7 @@ const Friends = () => {
           </TabsContent>
 
           <TabsContent value="requests">
-            {incoming.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No pending requests</CardContent></Card> :
+            {incoming.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No pending resonance requests</CardContent></Card> :
             <div className="grid gap-3">{incoming.map(r => (
               <Card key={r.id} className="animate-fade-in">
                 <CardContent className="flex items-center gap-3 py-3">
@@ -114,7 +114,7 @@ const Friends = () => {
 
           <TabsContent value="search">
             <div className="flex gap-2 mb-4">
-              <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name..." onKeyDown={e => e.key === 'Enter' && searchUsers()} />
+              <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search the verse..." onKeyDown={e => e.key === 'Enter' && searchUsers()} />
               <Button onClick={searchUsers}><Search className="h-4 w-4" /></Button>
             </div>
             <div className="grid gap-3">{searchResults.map(u => (
@@ -122,7 +122,7 @@ const Friends = () => {
                 <CardContent className="flex items-center gap-3 py-3">
                   <Link to={`/profile/${u.user_id}`}><Avatar><AvatarImage src={u.avatar_url} /><AvatarFallback className="bg-primary text-primary-foreground">{u.display_name?.[0]}</AvatarFallback></Avatar></Link>
                   <Link to={`/profile/${u.user_id}`} className="flex-1 font-medium hover:underline">{u.display_name}</Link>
-                  <Button size="sm" onClick={() => sendRequest(u.user_id)}><UserPlus className="h-4 w-4 mr-1" />Add</Button>
+                  <Button size="sm" className="echo-gradient text-primary-foreground border-0" onClick={() => sendRequest(u.user_id)}><UserPlus className="h-4 w-4 mr-1" />Resonate</Button>
                 </CardContent>
               </Card>
             ))}</div>

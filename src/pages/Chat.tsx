@@ -22,7 +22,7 @@ const Chat = () => {
     const fetchConversations = async () => {
       const { data: friends } = await supabase
         .from('friends')
-        .select('*, requester:requester_id(display_name, avatar_url, user_id:user_id), addressee:addressee_id(display_name, avatar_url, user_id:user_id)')
+        .select('*, requester:requester_id(display_name, avatar_url, user_id), addressee:addressee_id(display_name, avatar_url, user_id)')
         .eq('status', 'accepted')
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
       
@@ -78,8 +78,8 @@ const Chat = () => {
         <div className="grid md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-120px)]">
           <Card className="overflow-y-auto">
             <CardContent className="p-2">
-              <h3 className="font-semibold text-sm px-2 py-2 text-muted-foreground uppercase tracking-wider">Conversations</h3>
-              {conversations.length === 0 ? <p className="text-sm text-muted-foreground p-2">Add friends to start chatting</p> :
+              <h3 className="font-semibold text-sm px-2 py-2 text-muted-foreground uppercase tracking-wider">Whispers</h3>
+              {conversations.length === 0 ? <p className="text-sm text-muted-foreground p-2">Connect with resonators to start whispering</p> :
               conversations.map(c => (
                 <button key={c.user_id} onClick={() => setSelectedUser(c)}
                   className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors hover:bg-accent ${selectedUser?.user_id === c.user_id ? 'bg-accent' : ''}`}>
@@ -100,7 +100,7 @@ const Chat = () => {
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {messages.map(m => (
                     <div key={m.id} className={`flex ${m.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] rounded-2xl px-4 py-2 text-sm ${m.sender_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <div className={`max-w-[70%] rounded-2xl px-4 py-2 text-sm ${m.sender_id === user?.id ? 'echo-gradient text-primary-foreground' : 'bg-muted'}`}>
                         <p>{m.content}</p>
                         <p className={`text-[10px] mt-1 ${m.sender_id === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                           {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
@@ -111,13 +111,13 @@ const Chat = () => {
                   <div ref={messagesEndRef} />
                 </div>
                 <div className="p-4 border-t flex gap-2">
-                  <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." 
+                  <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Whisper something..." 
                     onKeyDown={e => e.key === 'Enter' && sendMessage()} />
-                  <Button size="icon" onClick={sendMessage} disabled={!newMessage.trim()}><Send className="h-4 w-4" /></Button>
+                  <Button size="icon" onClick={sendMessage} disabled={!newMessage.trim()} className="echo-gradient text-primary-foreground border-0"><Send className="h-4 w-4" /></Button>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">Select a conversation to start chatting</div>
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">Select a resonator to start whispering</div>
             )}
           </Card>
         </div>
