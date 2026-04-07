@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Users, FileText, Flag, Activity } from 'lucide-react';
+import { Users, Volume2, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminDashboard = () => {
@@ -46,9 +46,9 @@ const AdminDashboard = () => {
 
   const deletePost = async (postId: string, reportId: string) => {
     await supabase.from('posts').delete().eq('id', postId);
-    await supabase.from('reports').update({ status: 'resolved', admin_notes: 'Post deleted by admin' }).eq('id', reportId);
+    await supabase.from('reports').update({ status: 'resolved', admin_notes: 'Echo silenced by admin' }).eq('id', reportId);
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
-    toast.success('Post deleted');
+    toast.success('Echo silenced');
   };
 
   if (loading) return <div className="min-h-screen bg-background"><Navbar /><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></div>;
@@ -57,33 +57,33 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold">Command Center</h1>
         
         <div className="grid grid-cols-3 gap-4">
-          <Card><CardContent className="flex items-center gap-3 py-4"><Users className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{stats.users}</p><p className="text-sm text-muted-foreground">Users</p></div></CardContent></Card>
-          <Card><CardContent className="flex items-center gap-3 py-4"><FileText className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{stats.posts}</p><p className="text-sm text-muted-foreground">Posts</p></div></CardContent></Card>
-          <Card><CardContent className="flex items-center gap-3 py-4"><Flag className="h-8 w-8 text-destructive" /><div><p className="text-2xl font-bold">{stats.reports}</p><p className="text-sm text-muted-foreground">Pending Reports</p></div></CardContent></Card>
+          <Card className="shadow-sm"><CardContent className="flex items-center gap-3 py-4"><Users className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{stats.users}</p><p className="text-sm text-muted-foreground">Voices</p></div></CardContent></Card>
+          <Card className="shadow-sm"><CardContent className="flex items-center gap-3 py-4"><Volume2 className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{stats.posts}</p><p className="text-sm text-muted-foreground">Echoes</p></div></CardContent></Card>
+          <Card className="shadow-sm"><CardContent className="flex items-center gap-3 py-4"><Flag className="h-8 w-8 text-destructive" /><div><p className="text-2xl font-bold">{stats.reports}</p><p className="text-sm text-muted-foreground">Flags</p></div></CardContent></Card>
         </div>
 
         <Tabs defaultValue="reports">
           <TabsList>
-            <TabsTrigger value="reports">Content Reports</TabsTrigger>
-            <TabsTrigger value="users">User Management</TabsTrigger>
+            <TabsTrigger value="reports">Flagged Echoes</TabsTrigger>
+            <TabsTrigger value="users">Voices</TabsTrigger>
           </TabsList>
 
           <TabsContent value="reports" className="space-y-3 mt-4">
-            {reports.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No reports</CardContent></Card> :
+            {reports.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No flags</CardContent></Card> :
             reports.map(r => (
               <Card key={r.id} className="animate-fade-in">
                 <CardContent className="py-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm"><span className="font-medium">{r.reporter?.display_name}</span> reported: <span className="text-muted-foreground">{r.reason}</span></p>
+                    <p className="text-sm"><span className="font-medium">{r.reporter?.display_name}</span> flagged: <span className="text-muted-foreground">{r.reason}</span></p>
                     <Badge variant={r.status === 'pending' ? 'destructive' : 'secondary'}>{r.status}</Badge>
                   </div>
-                  {r.post && <p className="text-sm bg-muted p-2 rounded">{r.post.content?.substring(0, 200)}</p>}
+                  {r.post && <p className="text-sm bg-muted p-2 rounded-lg">{r.post.content?.substring(0, 200)}</p>}
                   {r.status === 'pending' && (
                     <div className="flex gap-2">
-                      {r.post_id && <Button size="sm" variant="destructive" onClick={() => deletePost(r.post_id, r.id)}>Delete Post</Button>}
+                      {r.post_id && <Button size="sm" variant="destructive" onClick={() => deletePost(r.post_id, r.id)}>Silence Echo</Button>}
                       <Button size="sm" variant="outline" onClick={() => handleReportAction(r.id, 'dismissed')}>Dismiss</Button>
                       <Button size="sm" variant="outline" onClick={() => handleReportAction(r.id, 'reviewed')}>Mark Reviewed</Button>
                     </div>
@@ -97,6 +97,7 @@ const AdminDashboard = () => {
             {users.map(u => (
               <Card key={u.id} className="animate-fade-in">
                 <CardContent className="flex items-center gap-3 py-3">
+                  <Avatar className="h-9 w-9"><AvatarImage src={u.avatar_url} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{u.display_name?.[0]}</AvatarFallback></Avatar>
                   <div className="flex-1">
                     <p className="font-medium text-sm">{u.display_name}</p>
                     <p className="text-xs text-muted-foreground">@{u.username}</p>

@@ -45,8 +45,8 @@ const EditProfile = () => {
     }).eq('user_id', user.id);
 
     setSaving(false);
-    if (error) { toast.error('Failed to update profile'); return; }
-    toast.success('Profile updated!');
+    if (error) { toast.error('Failed to update your verse'); return; }
+    toast.success('Verse updated!');
     await refreshProfile();
     navigate(`/profile/${user.id}`);
   };
@@ -57,12 +57,12 @@ const EditProfile = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="max-w-lg mx-auto px-4 py-6">
-        <Card>
-          <CardHeader><CardTitle>Edit Profile</CardTitle></CardHeader>
+        <Card className="shadow-md">
+          <CardHeader><CardTitle>Edit Your Verse</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-center">
               <label className="relative cursor-pointer group">
-                <Avatar className="h-24 w-24">
+                <Avatar className="h-24 w-24 ring-2 ring-primary/20">
                   <AvatarImage src={avatarPreview || profile?.avatar_url} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-2xl">{initials}</AvatarFallback>
                 </Avatar>
@@ -77,7 +77,7 @@ const EditProfile = () => {
             <div><label className="text-sm font-medium">Location</label><Input value={location} onChange={e => setLocation(e.target.value)} /></div>
             <div><label className="text-sm font-medium">Website</label><Input value={website} onChange={e => setWebsite(e.target.value)} /></div>
             <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={saving} className="flex-1">{saving ? 'Saving...' : 'Save Changes'}</Button>
+              <Button onClick={handleSave} disabled={saving} className="flex-1 echo-gradient text-primary-foreground border-0">{saving ? 'Saving...' : 'Save Verse'}</Button>
               <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
             </div>
           </CardContent>
