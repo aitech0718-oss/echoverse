@@ -14,26 +14,41 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if demo user exists
-    const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
-    const demoExists = existing?.users?.some(u => u.email === "demo@echoverse.app");
+    const accounts = [
+      { email: "demo@echoverse.app", password: "Demo@123", name: "Echo Explorer", role: "user" },
+      { email: "admin@echoverse.app", password: "Admin@123", name: "EchoVerse Admin", role: "admin" },
+    ];
 
-    if (demoExists) {
-      return new Response(JSON.stringify({ success: true, message: "Demo account already exists" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
+    const existingEmails = new Set(existing?.users?.map(u => u.email) || []);
+    const results = [];
+
+    for (const account of accounts) {
+      if (existingEmails.has(account.email)) {
+        results.push({ email: account.email, status: "already exists" });
+        continue;
+      }
+
+      const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        email: account.email,
+        password: account.password,
+        email_confirm: true,
+        user_metadata: { display_name: account.name },
       });
+
+      if (error) {
+        results.push({ email: account.email, status: "error", message: error.message });
+        continue;
+      }
+
+      if (data.user && account.role === "admin") {
+        await supabaseAdmin.from("user_roles").update({ role: "admin" }).eq("user_id", data.user.id);
+      }
+
+      results.push({ email: account.email, status: "created" });
     }
 
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: "demo@echoverse.app",
-      password: "Demo@123",
-      email_confirm: true,
-      user_metadata: { display_name: "Echo Explorer" },
-    });
-
-    if (error) throw error;
-
-    return new Response(JSON.stringify({ success: true, message: "Demo account created", userId: data.user.id }), {
+    return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

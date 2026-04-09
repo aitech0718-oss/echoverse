@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, Flag, MoreHorizontal, Trash2, Volume2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Flag, MoreHorizontal, Trash2, Volume2, Download, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,6 +24,7 @@ const PostCard = ({ post, onUpdate }: PostCardProps) => {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
+  const [shareCount, setShareCount] = useState(post.shares_count || 0);
 
   const initials = post.profiles?.display_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'U';
 
@@ -75,6 +76,17 @@ const PostCard = ({ post, onUpdate }: PostCardProps) => {
     }
   };
 
+  const handleShare = async () => {
+    if (!user) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/profile/${post.author_id}`);
+      toast.success('Echo link copied!');
+      setShareCount((c: number) => c + 1);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
   const handleDelete = async () => {
     await supabase.from('posts').delete().eq('id', post.id);
     toast.success('Echo silenced');
@@ -85,6 +97,23 @@ const PostCard = ({ post, onUpdate }: PostCardProps) => {
     if (!user) return;
     await supabase.from('reports').insert({ reporter_id: user.id, post_id: post.id, reason: 'Inappropriate content' });
     toast.success('Echo reported — thanks for keeping the verse safe');
+  };
+
+  const handleDownload = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `echoverse_media_${Date.now()}.${blob.type.split('/')[1] || 'jpg'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      toast.success('Media downloaded');
+    } catch {
+      toast.error('Download failed');
+    }
   };
 
   return (
@@ -117,15 +146,26 @@ const PostCard = ({ post, onUpdate }: PostCardProps) => {
       </CardHeader>
       <CardContent className="pb-3">
         {post.content && <p className="text-sm whitespace-pre-wrap mb-3">{post.content}</p>}
-        {post.image_url && <img src={post.image_url} alt="Echo media" className="rounded-xl w-full max-h-96 object-cover" />}
+        {post.image_url && (
+          <div className="relative group">
+            <img src={post.image_url} alt="Echo media" className="rounded-xl w-full max-h-96 object-cover" />
+            <Button variant="secondary" size="icon" className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+              onClick={() => handleDownload(post.image_url)} title="Download">
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex flex-col gap-3 pt-0">
-        <div className="flex items-center gap-4 w-full border-t pt-2">
+        <div className="flex items-center gap-1 w-full border-t pt-2">
           <Button variant="ghost" size="sm" onClick={handleLike} className={liked ? 'text-pink-500' : 'text-muted-foreground hover:text-pink-500'}>
             <Heart className={`h-4 w-4 mr-1 ${liked ? 'fill-current' : ''}`} />{likesCount > 0 && likesCount}
           </Button>
           <Button variant="ghost" size="sm" onClick={toggleComments} className="text-muted-foreground hover:text-primary">
             <MessageCircle className="h-4 w-4 mr-1" />{post.comments_count > 0 && post.comments_count}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleShare} className="text-muted-foreground hover:text-green-500">
+            <Share2 className="h-4 w-4 mr-1" />{shareCount > 0 && shareCount}
           </Button>
         </div>
         {showComments && (
@@ -134,19 +174,25 @@ const PostCard = ({ post, onUpdate }: PostCardProps) => {
               <>
                 {comments.map(c => (
                   <div key={c.id} className="flex gap-2 text-sm">
-                    <Avatar className="h-6 w-6 mt-0.5">
-                      <AvatarImage src={c.profiles?.avatar_url} />
-                      <AvatarFallback className="text-xs bg-muted">{c.profiles?.display_name?.[0]}</AvatarFallback>
-                    </Avatar>
+                    <Link to={`/profile/${c.author_id}`}>
+                      <Avatar className="h-6 w-6 mt-0.5">
+                        <AvatarImage src={c.profiles?.avatar_url} />
+                        <AvatarFallback className="text-xs bg-muted">{c.profiles?.display_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                    </Link>
                     <div className="flex-1 bg-muted/60 rounded-xl p-2.5">
                       <span className="font-medium text-xs">{c.profiles?.display_name}</span>
                       <p className="text-xs mt-0.5">{c.content}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</p>
                     </div>
                   </div>
                 ))}
                 <div className="flex gap-2">
-                  <Textarea value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Reply to this echo..." className="min-h-[36px] text-sm resize-none" rows={1} />
-                  <Button size="sm" onClick={submitComment} disabled={!newComment.trim()} className="echo-gradient text-primary-foreground border-0">Reply</Button>
+                  <Textarea value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Reply to this echo..."
+                    className="min-h-[36px] text-sm resize-none" rows={1} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(); } }} />
+                  <Button size="icon" onClick={submitComment} disabled={!newComment.trim()} className="echo-gradient text-primary-foreground border-0 h-9 w-9 shrink-0">
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
               </>
             )}

@@ -2,106 +2,291 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Volume2, Flag } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Users, Volume2, Flag, MessageCircle, TrendingUp, ShieldAlert, Search, Ban, Eye, Trash2, CheckCircle, XCircle, Activity } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ users: 0, posts: 0, reports: 0 });
+  const [stats, setStats] = useState({ users: 0, posts: 0, reports: 0, messages: 0, comments: 0, likes: 0 });
   const [users, setUsers] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [recentPosts, setRecentPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userSearch, setUserSearch] = useState('');
+  const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
+  const [tab, setTab] = useState('overview');
 
   useEffect(() => {
     const fetchData = async () => {
-      const [{ count: uc }, { count: pc }, { count: rc }] = await Promise.all([
+      const [
+        { count: uc }, { count: pc }, { count: rc },
+        { count: mc }, { count: cc }, { count: lc }
+      ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('posts').select('*', { count: 'exact', head: true }),
         supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('messages').select('*', { count: 'exact', head: true }),
+        supabase.from('comments').select('*', { count: 'exact', head: true }),
+        supabase.from('likes').select('*', { count: 'exact', head: true }),
       ]);
-      setStats({ users: uc || 0, posts: pc || 0, reports: rc || 0 });
+      setStats({
+        users: uc || 0, posts: pc || 0, reports: rc || 0,
+        messages: mc || 0, comments: cc || 0, likes: lc || 0
+      });
 
-      const { data: userData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(50);
+      const { data: userData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(100);
       setUsers(userData || []);
 
       const { data: reportData } = await supabase
         .from('reports')
-        .select('*, reporter:reporter_id(display_name), post:post_id(content, author_id)')
+        .select('*, reporter:reporter_id(display_name, avatar_url), post:post_id(content, author_id)')
         .order('created_at', { ascending: false }).limit(50);
       setReports(reportData || []);
+
+      const { data: postData } = await supabase
+        .from('posts')
+        .select('*, profiles:author_id(display_name, avatar_url)')
+        .order('created_at', { ascending: false }).limit(20);
+      setRecentPosts(postData || []);
+
       setLoading(false);
     };
     fetchData();
   }, []);
 
   const handleReportAction = async (reportId: string, status: string) => {
-    await supabase.from('reports').update({ status, admin_notes: `${status} by admin` }).eq('id', reportId);
-    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r));
+    const notes = adminNotes[reportId] || `${status} by admin`;
+    await supabase.from('reports').update({ status, admin_notes: notes }).eq('id', reportId);
+    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status, admin_notes: notes } : r));
     toast.success(`Report ${status}`);
   };
 
-  const deletePost = async (postId: string, reportId: string) => {
+  const deletePost = async (postId: string, reportId?: string) => {
     await supabase.from('posts').delete().eq('id', postId);
-    await supabase.from('reports').update({ status: 'resolved', admin_notes: 'Echo silenced by admin' }).eq('id', reportId);
-    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
+    if (reportId) {
+      await supabase.from('reports').update({ status: 'resolved', admin_notes: 'Echo silenced by admin' }).eq('id', reportId);
+      setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
+    }
+    setRecentPosts(prev => prev.filter(p => p.id !== postId));
     toast.success('Echo silenced');
   };
 
+  const filteredUsers = users.filter(u =>
+    !userSearch || u.display_name?.toLowerCase().includes(userSearch.toLowerCase()) || u.username?.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
+  const pendingReports = reports.filter(r => r.status === 'pending');
+  const resolvedReports = reports.filter(r => r.status !== 'pending');
+
   if (loading) return <div className="min-h-screen bg-background"><Navbar /><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></div>;
+
+  const StatCard = ({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-primary/10' }: any) => (
+    <Card className="shadow-sm hover:shadow-md transition-shadow">
+      <CardContent className="flex items-center gap-4 py-5">
+        <div className={`h-12 w-12 rounded-xl ${bg} flex items-center justify-center`}>
+          <Icon className={`h-6 w-6 ${color}`} />
+        </div>
+        <div>
+          <p className="text-3xl font-bold">{value}</p>
+          <p className="text-sm text-muted-foreground">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <h1 className="text-2xl font-bold">Command Center</h1>
-        
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="shadow-sm"><CardContent className="flex items-center gap-3 py-4"><Users className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{stats.users}</p><p className="text-sm text-muted-foreground">Voices</p></div></CardContent></Card>
-          <Card className="shadow-sm"><CardContent className="flex items-center gap-3 py-4"><Volume2 className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{stats.posts}</p><p className="text-sm text-muted-foreground">Echoes</p></div></CardContent></Card>
-          <Card className="shadow-sm"><CardContent className="flex items-center gap-3 py-4"><Flag className="h-8 w-8 text-destructive" /><div><p className="text-2xl font-bold">{stats.reports}</p><p className="text-sm text-muted-foreground">Flags</p></div></CardContent></Card>
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ShieldAlert className="h-6 w-6 text-primary" /> Command Center
+            </h1>
+            <p className="text-sm text-muted-foreground">Admin dashboard for EchoVerse management</p>
+          </div>
+          {pendingReports.length > 0 && (
+            <Badge variant="destructive" className="animate-pulse text-sm px-3 py-1">
+              {pendingReports.length} Pending Flag{pendingReports.length > 1 ? 's' : ''}
+            </Badge>
+          )}
         </div>
 
-        <Tabs defaultValue="reports">
-          <TabsList>
-            <TabsTrigger value="reports">Flagged Echoes</TabsTrigger>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard icon={Users} label="Voices" value={stats.users} />
+          <StatCard icon={Volume2} label="Echoes" value={stats.posts} color="text-blue-500" bg="bg-blue-500/10" />
+          <StatCard icon={MessageCircle} label="Whispers" value={stats.messages} color="text-green-500" bg="bg-green-500/10" />
+          <StatCard icon={Activity} label="Comments" value={stats.comments} color="text-purple-500" bg="bg-purple-500/10" />
+          <StatCard icon={TrendingUp} label="Resonances" value={stats.likes} color="text-pink-500" bg="bg-pink-500/10" />
+          <StatCard icon={Flag} label="Pending Flags" value={stats.reports} color="text-destructive" bg="bg-destructive/10" />
+        </div>
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="grid grid-cols-4 w-full max-w-lg">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="reports" className="relative">
+              Flags
+              {pendingReports.length > 0 && <span className="ml-1 bg-destructive text-destructive-foreground rounded-full text-[10px] px-1.5">{pendingReports.length}</span>}
+            </TabsTrigger>
             <TabsTrigger value="users">Voices</TabsTrigger>
+            <TabsTrigger value="content">Content</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="reports" className="space-y-3 mt-4">
-            {reports.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No flags</CardContent></Card> :
-            reports.map(r => (
-              <Card key={r.id} className="animate-fade-in">
-                <CardContent className="py-3 space-y-2">
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-4 mt-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Recent Voices</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {users.slice(0, 5).map(u => (
+                    <div key={u.id} className="flex items-center gap-3 py-1.5">
+                      <Avatar className="h-8 w-8"><AvatarImage src={u.avatar_url} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{u.display_name?.[0]}</AvatarFallback></Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{u.display_name}</p>
+                        <p className="text-xs text-muted-foreground">@{u.username}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Flag className="h-4 w-4 text-destructive" /> Recent Flags</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {reports.length === 0 ? <p className="text-sm text-muted-foreground py-4 text-center">No flags — the verse is peaceful ✨</p> :
+                    reports.slice(0, 5).map(r => (
+                      <div key={r.id} className="flex items-center gap-3 py-1.5">
+                        <Badge variant={r.status === 'pending' ? 'destructive' : 'secondary'} className="text-xs">{r.status}</Badge>
+                        <p className="text-sm flex-1 truncate">{r.reason}</p>
+                        <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>
+                      </div>
+                    ))
+                  }
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Flags Tab */}
+          <TabsContent value="reports" className="space-y-4 mt-4">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase">Pending Flags ({pendingReports.length})</h3>
+            {pendingReports.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">🎉 No pending flags!</CardContent></Card>
+            ) : pendingReports.map(r => (
+              <Card key={r.id} className="animate-fade-in border-destructive/20">
+                <CardContent className="py-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm"><span className="font-medium">{r.reporter?.display_name}</span> flagged: <span className="text-muted-foreground">{r.reason}</span></p>
-                    <Badge variant={r.status === 'pending' ? 'destructive' : 'secondary'}>{r.status}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7"><AvatarImage src={r.reporter?.avatar_url} /><AvatarFallback className="text-xs bg-muted">{r.reporter?.display_name?.[0]}</AvatarFallback></Avatar>
+                      <p className="text-sm"><span className="font-medium">{r.reporter?.display_name}</span> <span className="text-muted-foreground">flagged</span></p>
+                    </div>
+                    <Badge variant="destructive">{r.status}</Badge>
                   </div>
-                  {r.post && <p className="text-sm bg-muted p-2 rounded-lg">{r.post.content?.substring(0, 200)}</p>}
-                  {r.status === 'pending' && (
-                    <div className="flex gap-2">
-                      {r.post_id && <Button size="sm" variant="destructive" onClick={() => deletePost(r.post_id, r.id)}>Silence Echo</Button>}
-                      <Button size="sm" variant="outline" onClick={() => handleReportAction(r.id, 'dismissed')}>Dismiss</Button>
-                      <Button size="sm" variant="outline" onClick={() => handleReportAction(r.id, 'reviewed')}>Mark Reviewed</Button>
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Reason</p>
+                    <p className="text-sm">{r.reason}</p>
+                  </div>
+                  {r.post && (
+                    <div className="bg-muted/30 rounded-lg p-3 border-l-2 border-primary/30">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Flagged Echo</p>
+                      <p className="text-sm">{r.post.content?.substring(0, 300)}</p>
                     </div>
                   )}
+                  <div>
+                    <Textarea placeholder="Admin notes..." value={adminNotes[r.id] || ''} onChange={e => setAdminNotes(prev => ({ ...prev, [r.id]: e.target.value }))} rows={2} className="text-sm mb-2" />
+                    <div className="flex gap-2 flex-wrap">
+                      {r.post_id && <Button size="sm" variant="destructive" onClick={() => deletePost(r.post_id, r.id)}><Trash2 className="h-3 w-3 mr-1" />Silence Echo</Button>}
+                      <Button size="sm" variant="outline" onClick={() => handleReportAction(r.id, 'reviewed')}><Eye className="h-3 w-3 mr-1" />Mark Reviewed</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleReportAction(r.id, 'dismissed')}><XCircle className="h-3 w-3 mr-1" />Dismiss</Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))}
+
+            {resolvedReports.length > 0 && (
+              <>
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase mt-6">Resolved ({resolvedReports.length})</h3>
+                {resolvedReports.slice(0, 10).map(r => (
+                  <Card key={r.id} className="opacity-70">
+                    <CardContent className="flex items-center gap-3 py-3">
+                      <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                      <p className="text-sm flex-1 truncate">{r.reason}</p>
+                      <Badge variant="secondary">{r.status}</Badge>
+                      <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
           </TabsContent>
 
-          <TabsContent value="users" className="space-y-3 mt-4">
-            {users.map(u => (
-              <Card key={u.id} className="animate-fade-in">
-                <CardContent className="flex items-center gap-3 py-3">
-                  <Avatar className="h-9 w-9"><AvatarImage src={u.avatar_url} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{u.display_name?.[0]}</AvatarFallback></Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{u.display_name}</p>
-                    <p className="text-xs text-muted-foreground">@{u.username}</p>
+          {/* Users Tab */}
+          <TabsContent value="users" className="space-y-4 mt-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search voices..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="pl-9" />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              {filteredUsers.map(u => (
+                <Card key={u.id} className="animate-fade-in hover:shadow-sm transition-shadow">
+                  <CardContent className="flex items-center gap-3 py-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={u.avatar_url} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">{u.display_name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{u.display_name}</p>
+                        {u.is_online && <span className="h-2 w-2 bg-green-500 rounded-full" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground">@{u.username}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Joined</p>
+                      <p className="text-xs">{formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Content Tab */}
+          <TabsContent value="content" className="space-y-3 mt-4">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase">Recent Echoes</h3>
+            {recentPosts.map(p => (
+              <Card key={p.id} className="animate-fade-in">
+                <CardContent className="py-3">
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-8 w-8"><AvatarImage src={p.profiles?.avatar_url} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{p.profiles?.display_name?.[0]}</AvatarFallback></Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{p.profiles?.display_name}</p>
+                        <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>
+                        <Badge variant="outline" className="text-[10px]">{p.visibility}</Badge>
+                      </div>
+                      <p className="text-sm mt-1">{p.content?.substring(0, 200)}</p>
+                      {p.image_url && <img src={p.image_url} alt="" className="rounded-lg mt-2 max-h-32 object-cover" />}
+                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        <span>❤️ {p.likes_count || 0}</span>
+                        <span>💬 {p.comments_count || 0}</span>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => deletePost(p.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
