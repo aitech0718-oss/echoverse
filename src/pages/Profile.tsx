@@ -118,8 +118,8 @@ const Profile = () => {
                   <h1 className="text-xl font-bold">{profileData?.display_name}</h1>
                   {isOwn && (
                     isPublic
-                      ? <Globe className="h-4 w-4 text-green-500" title="Public account" />
-                      : <Lock className="h-4 w-4 text-destructive" title="Private account" />
+                      ? <span title="Public account"><Globe className="h-4 w-4 text-green-500" /></span>
+                      : <span title="Private account"><Lock className="h-4 w-4 text-destructive" /></span>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">@{profileData?.username}</p>
