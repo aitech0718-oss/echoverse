@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, CheckCheck } from 'lucide-react';
+import { Check, CheckCheck, AlertTriangle, Ban } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const Notifications = () => {
@@ -47,6 +47,19 @@ const Notifications = () => {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
+  const getIcon = (type: string) => {
+    if (type === 'warning') return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    if (type === 'suspension') return <Ban className="h-4 w-4 text-destructive" />;
+    return null;
+  };
+
+  const getBorderClass = (type: string, isRead: boolean) => {
+    if (type === 'warning') return 'border-yellow-500/40 bg-yellow-500/5';
+    if (type === 'suspension') return 'border-destructive/40 bg-destructive/5';
+    if (!isRead) return 'border-primary/30 bg-primary/5 shadow-sm';
+    return '';
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -58,14 +71,16 @@ const Notifications = () => {
         {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div> :
         notifications.length === 0 ? <Card><CardContent className="py-8 text-center text-muted-foreground">No reverberations yet</CardContent></Card> :
         notifications.map(n => (
-          <Card key={n.id} className={`animate-fade-in transition-all ${!n.is_read ? 'border-primary/30 bg-primary/5 shadow-sm' : ''}`}>
+          <Card key={n.id} className={`animate-fade-in transition-all ${getBorderClass(n.type, n.is_read)}`}>
             <CardContent className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={n.actor?.avatar_url} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs">{n.actor?.display_name?.[0] || '?'}</AvatarFallback>
-              </Avatar>
+              {getIcon(n.type) || (
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={n.actor?.avatar_url} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">{n.actor?.display_name?.[0] || '?'}</AvatarFallback>
+                </Avatar>
+              )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm"><span className="font-medium">{n.actor?.display_name}</span> {n.message}</p>
+                <p className="text-sm"><span className="font-medium">{n.actor?.display_name || 'System'}</span> {n.message}</p>
                 <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}</p>
               </div>
               {!n.is_read && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => markRead(n.id)}><Check className="h-4 w-4" /></Button>}

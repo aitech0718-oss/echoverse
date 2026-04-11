@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import NotificationBell from './NotificationBell';
+import GlobalSearch from './GlobalSearch';
 import { useState } from 'react';
 
 const Navbar = () => {
@@ -23,8 +24,12 @@ const Navbar = () => {
           <div className="h-8 w-8 rounded-lg echo-gradient flex items-center justify-center">
             <Radio className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-primary to-pink-500 bg-clip-text text-transparent">EchoVerse</span>
+          <span className="text-xl font-bold bg-gradient-to-r from-primary to-pink-500 bg-clip-text text-transparent hidden sm:inline">EchoVerse</span>
         </Link>
+
+        <div className="hidden md:block">
+          <GlobalSearch />
+        </div>
 
         <nav className="hidden md:flex items-center gap-1">
           <Button variant="ghost" size="sm" asChild><Link to="/feed"><Home className="h-5 w-5" /></Link></Button>
@@ -60,11 +65,14 @@ const Navbar = () => {
         </div>
       </div>
       {mobileOpen && (
-        <nav className="md:hidden border-t px-4 py-2 flex gap-2 glass animate-fade-in">
-          <Button variant="ghost" size="sm" asChild onClick={() => setMobileOpen(false)}><Link to="/feed"><Home className="h-4 w-4 mr-1" />Timeline</Link></Button>
-          <Button variant="ghost" size="sm" asChild onClick={() => setMobileOpen(false)}><Link to="/friends"><Users className="h-4 w-4 mr-1" />Resonators</Link></Button>
-          <Button variant="ghost" size="sm" asChild onClick={() => setMobileOpen(false)}><Link to="/chat"><MessageCircle className="h-4 w-4 mr-1" />Whisper</Link></Button>
-          <NotificationBell />
+        <nav className="md:hidden border-t px-4 py-2 space-y-2 glass animate-fade-in">
+          <div className="mb-2"><GlobalSearch /></div>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" asChild onClick={() => setMobileOpen(false)}><Link to="/feed"><Home className="h-4 w-4 mr-1" />Timeline</Link></Button>
+            <Button variant="ghost" size="sm" asChild onClick={() => setMobileOpen(false)}><Link to="/friends"><Users className="h-4 w-4 mr-1" />Resonators</Link></Button>
+            <Button variant="ghost" size="sm" asChild onClick={() => setMobileOpen(false)}><Link to="/chat"><MessageCircle className="h-4 w-4 mr-1" />Whisper</Link></Button>
+            <NotificationBell />
+          </div>
         </nav>
       )}
     </header>

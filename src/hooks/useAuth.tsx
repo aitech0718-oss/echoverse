@@ -8,10 +8,12 @@ interface AuthContextType {
   profile: any;
   role: string;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<any>;
+  warnings: any[];
+  signUp: (email: string, password: string, displayName: string, username: string, gender: string, dob: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshWarnings: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,16 +24,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<any>(null);
   const [role, setRole] = useState<string>('user');
   const [loading, setLoading] = useState(true);
+  const [warnings, setWarnings] = useState<any[]>([]);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
     setProfile(data);
     const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', userId).single();
     if (roleData) setRole(roleData.role);
+    // Fetch warnings
+    const { data: w } = await supabase.from('warnings').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    setWarnings(w || []);
   };
 
   const refreshProfile = async () => {
     if (user) await fetchProfile(user.id);
+  };
+
+  const refreshWarnings = async () => {
+    if (user) {
+      const { data: w } = await supabase.from('warnings').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      setWarnings(w || []);
+    }
   };
 
   useEffect(() => {
@@ -43,6 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setProfile(null);
         setRole('user');
+        setWarnings([]);
       }
       setLoading(false);
     });
@@ -57,10 +71,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, displayName: string) => {
+  const signUp = async (email: string, password: string, displayName: string, username: string, gender: string, dob: string) => {
     return supabase.auth.signUp({
       email, password,
-      options: { data: { display_name: displayName } }
+      options: { data: { display_name: displayName, username, gender, dob } }
     });
   };
 
@@ -74,10 +88,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSession(null);
     setProfile(null);
     setRole('user');
+    setWarnings([]);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, loading, warnings, signUp, signIn, signOut, refreshProfile, refreshWarnings }}>
       {children}
     </AuthContext.Provider>
   );

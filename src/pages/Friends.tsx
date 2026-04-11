@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { UserPlus, UserCheck, UserX, Search } from 'lucide-react';
+import { UserPlus, UserCheck, UserX, Search, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
@@ -18,23 +18,37 @@ const Friends = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [friendUserIds, setFriendUserIds] = useState<Set<string>>(new Set());
+  const [pendingUserIds, setPendingUserIds] = useState<Set<string>>(new Set());
 
   const fetchFriends = async () => {
     if (!user) return;
-    const { data: accepted } = await supabase
+    const { data: allFriends } = await supabase
       .from('friends')
       .select('*, requester:requester_id(display_name, avatar_url, user_id), addressee:addressee_id(display_name, avatar_url, user_id)')
-      .eq('status', 'accepted')
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
-    
-    setFriends((accepted || []).map(f => f.requester_id === user.id ? { ...f, friend: f.addressee } : { ...f, friend: f.requester }));
 
-    const { data: pending } = await supabase
-      .from('friends')
-      .select('*, requester:requester_id(display_name, avatar_url, user_id)')
-      .eq('status', 'pending')
-      .eq('addressee_id', user.id);
-    setIncoming(pending || []);
+    const accepted = (allFriends || []).filter(f => f.status === 'accepted');
+    const pending = (allFriends || []).filter(f => f.status === 'pending');
+
+    setFriends(accepted.map(f => f.requester_id === user.id ? { ...f, friend: f.addressee } : { ...f, friend: f.requester }));
+
+    const incomingReqs = pending.filter(f => f.addressee_id === user.id);
+    setIncoming(incomingReqs);
+
+    // Build sets of all friend/pending user ids for filtering search results
+    const fIds = new Set<string>();
+    accepted.forEach(f => {
+      fIds.add(f.requester_id === user.id ? f.addressee_id : f.requester_id);
+    });
+    setFriendUserIds(fIds);
+
+    const pIds = new Set<string>();
+    pending.forEach(f => {
+      pIds.add(f.requester_id === user.id ? f.addressee_id : f.requester_id);
+    });
+    setPendingUserIds(pIds);
+
     setLoading(false);
   };
 
@@ -61,7 +75,7 @@ const Friends = () => {
 
   const searchUsers = async () => {
     if (!searchQuery.trim() || !user) return;
-    const { data } = await supabase.from('profiles').select('*').ilike('display_name', `%${searchQuery}%`).neq('user_id', user.id).limit(10);
+    const { data } = await supabase.from('profiles').select('*').or(`display_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`).neq('user_id', user.id).limit(20);
     setSearchResults(data || []);
   };
 
@@ -69,8 +83,20 @@ const Friends = () => {
     if (!user) return;
     const { error } = await supabase.from('friends').insert({ requester_id: user.id, addressee_id: userId });
     if (error?.code === '23505') { toast.info('Request already sent'); return; }
+    if (error) { toast.error('Failed to send request'); return; }
     await supabase.from('notifications').insert({ user_id: userId, actor_id: user.id, type: 'friend_request', message: 'wants to resonate with you' });
     toast.success('Resonance request sent!');
+    setPendingUserIds(prev => new Set(prev).add(userId));
+  };
+
+  const getButtonForUser = (userId: string) => {
+    if (friendUserIds.has(userId)) {
+      return <Button size="sm" variant="outline" disabled><UserCheck className="h-4 w-4 mr-1" />Resonating</Button>;
+    }
+    if (pendingUserIds.has(userId)) {
+      return <Button size="sm" variant="outline" disabled><Clock className="h-4 w-4 mr-1" />Pending</Button>;
+    }
+    return <Button size="sm" className="echo-gradient text-primary-foreground border-0" onClick={() => sendRequest(userId)}><UserPlus className="h-4 w-4 mr-1" />Resonate</Button>;
   };
 
   return (
@@ -121,8 +147,11 @@ const Friends = () => {
               <Card key={u.id} className="animate-fade-in">
                 <CardContent className="flex items-center gap-3 py-3">
                   <Link to={`/profile/${u.user_id}`}><Avatar><AvatarImage src={u.avatar_url} /><AvatarFallback className="bg-primary text-primary-foreground">{u.display_name?.[0]}</AvatarFallback></Avatar></Link>
-                  <Link to={`/profile/${u.user_id}`} className="flex-1 font-medium hover:underline">{u.display_name}</Link>
-                  <Button size="sm" className="echo-gradient text-primary-foreground border-0" onClick={() => sendRequest(u.user_id)}><UserPlus className="h-4 w-4 mr-1" />Resonate</Button>
+                  <div className="flex-1 min-w-0">
+                    <Link to={`/profile/${u.user_id}`} className="font-medium hover:underline block truncate">{u.display_name}</Link>
+                    <span className="text-xs text-muted-foreground">@{u.username}</span>
+                  </div>
+                  {getButtonForUser(u.user_id)}
                 </CardContent>
               </Card>
             ))}</div>

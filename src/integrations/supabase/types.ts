@@ -41,6 +41,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          parent_id: string | null
           post_id: string
           updated_at: string
         }
@@ -49,6 +50,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           post_id: string
           updated_at?: string
         }
@@ -57,6 +59,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           post_id?: string
           updated_at?: string
         }
@@ -67,6 +70,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "comments_post_id_fkey"
@@ -335,10 +345,15 @@ export type Database = {
           cover_url: string | null
           created_at: string
           display_name: string
+          dob: string | null
+          gender: string | null
           id: string
           is_online: boolean | null
+          is_suspended: boolean | null
           last_seen: string | null
           location: string | null
+          suspended_until: string | null
+          suspension_reason: string | null
           updated_at: string
           user_id: string
           username: string | null
@@ -350,10 +365,15 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           display_name?: string
+          dob?: string | null
+          gender?: string | null
           id?: string
           is_online?: boolean | null
+          is_suspended?: boolean | null
           last_seen?: string | null
           location?: string | null
+          suspended_until?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -365,14 +385,46 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           display_name?: string
+          dob?: string | null
+          gender?: string | null
           id?: string
           is_online?: boolean | null
+          is_suspended?: boolean | null
           last_seen?: string | null
           location?: string | null
+          suspended_until?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
           website?: string | null
+        }
+        Relationships: []
+      }
+      reactions: {
+        Row: {
+          comment_id: string | null
+          created_at: string
+          emoji: string
+          id: string
+          post_id: string | null
+          user_id: string
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string
+          emoji: string
+          id?: string
+          post_id?: string | null
+          user_id: string
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string
+          emoji?: string
+          id?: string
+          post_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -451,6 +503,33 @@ export type Database = {
         Update: {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      warnings: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          post_id: string | null
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          reason: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          reason?: string
           user_id?: string
         }
         Relationships: []
