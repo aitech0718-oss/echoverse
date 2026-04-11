@@ -28,6 +28,15 @@ const Register = () => {
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
   const isPasswordValid = hasMinLength && hasUpperCase && hasSymbol;
 
+  const getAge = (dobStr: string) => {
+    const today = new Date();
+    const birth = new Date(dobStr);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isPasswordValid) { toast.error('Password does not meet requirements'); return; }
@@ -35,9 +44,10 @@ const Register = () => {
     if (!name.trim() || !username.trim()) { toast.error('Name and username are required'); return; }
     if (!gender) { toast.error('Please select your gender'); return; }
     if (!dob) { toast.error('Please enter your date of birth'); return; }
+    if (getAge(dob) < 16) { toast.error('You must be at least 16 years old to join EchoVerse'); return; }
 
     setLoading(true);
-    const { error } = await signUp(email, password, name);
+    const { error } = await signUp(email, password, name, username, gender, dob);
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Welcome to EchoVerse! Your voice matters.');
@@ -95,6 +105,9 @@ const Register = () => {
                 <Input type="date" value={dob} onChange={e => setDob(e.target.value)} required max={new Date().toISOString().split('T')[0]} />
               </div>
             </div>
+            {dob && getAge(dob) < 16 && (
+              <p className="text-xs text-destructive flex items-center gap-1"><X className="h-3 w-3" /> You must be at least 16 years old</p>
+            )}
             <div>
               <label className="text-xs font-medium text-muted-foreground">Password *</label>
               <div className="relative">
@@ -128,7 +141,7 @@ const Register = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full echo-gradient text-primary-foreground border-0 hover:opacity-90" disabled={loading || !isPasswordValid || !passwordsMatch}>
+            <Button type="submit" className="w-full echo-gradient text-primary-foreground border-0 hover:opacity-90" disabled={loading || !isPasswordValid || !passwordsMatch || (!!dob && getAge(dob) < 16)}>
               {loading ? 'Creating your verse...' : 'Join EchoVerse'}
             </Button>
             <p className="text-sm text-muted-foreground">Already echoing? <Link to="/login" className="text-primary hover:underline">Sign in</Link></p>
