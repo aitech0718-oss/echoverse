@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Home, MessageCircle, Users, Settings, LogOut, Shield, User, Menu, X, Radio } from 'lucide-react';
+import { Home, MessageCircle, Users, Settings, LogOut, Shield, User, Menu, X, Radio, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -33,6 +33,7 @@ const Navbar = () => {
 
         <nav className="hidden md:flex items-center gap-1">
           <Button variant="ghost" size="sm" asChild><Link to="/feed"><Home className="h-5 w-5" /></Link></Button>
+          <Button variant="ghost" size="sm" asChild><Link to="/trending"><TrendingUp className="h-5 w-5" /></Link></Button>
           <Button variant="ghost" size="sm" asChild><Link to="/friends"><Users className="h-5 w-5" /></Link></Button>
           <Button variant="ghost" size="sm" asChild><Link to="/chat"><MessageCircle className="h-5 w-5" /></Link></Button>
           <NotificationBell />
