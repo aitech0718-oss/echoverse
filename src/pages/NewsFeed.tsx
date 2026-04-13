@@ -34,6 +34,18 @@ const NewsFeed = () => {
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
     const ids = (data || []).map(f => f.requester_id === user.id ? f.addressee_id : f.requester_id);
     setFriendIds(ids);
+
+    // Fetch profiles for friends
+    if (ids.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url')
+        .in('user_id', ids);
+      const map: Record<string, { display_name: string; avatar_url: string | null }> = {};
+      (profiles || []).forEach(p => { map[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url }; });
+      setFriendProfiles(map);
+    }
+
     return ids;
   };
 
