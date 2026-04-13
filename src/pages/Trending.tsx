@@ -3,9 +3,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import PostCard from '@/components/PostCard';
 import Navbar from '@/components/Navbar';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Flame, TrendingUp, Clock, Star } from 'lucide-react';
+import { Flame, TrendingUp, Clock, Star, Hash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type SortMode = 'hot' | 'top' | 'recent';
@@ -17,6 +17,8 @@ const Trending = () => {
   const [sortMode, setSortMode] = useState<SortMode>('hot');
   const [friendIds, setFriendIds] = useState<string[]>([]);
   const [friendProfiles, setFriendProfiles] = useState<Record<string, { display_name: string; avatar_url: string | null }>>({});
+  const [topTags, setTopTags] = useState<{ tag: string; count: number }[]>([]);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const fetchData = async () => {
     if (!user) return;
@@ -38,6 +40,23 @@ const Trending = () => {
       setFriendProfiles(map);
     }
 
+    // Fetch popular tags
+    const { data: tagsData } = await supabase
+      .from('hashtags')
+      .select('tag')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (tagsData) {
+      const tagCounts: Record<string, number> = {};
+      tagsData.forEach(t => { tagCounts[t.tag] = (tagCounts[t.tag] || 0) + 1; });
+      const sorted = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([tag, count]) => ({ tag, count }));
+      setTopTags(sorted);
+    }
+
     // Fetch public posts
     let query = supabase
       .from('posts')
@@ -50,17 +69,21 @@ const Trending = () => {
     } else if (sortMode === 'recent') {
       query = query.order('created_at', { ascending: false });
     } else {
-      // Hot: order by a combination (likes + comments, recent)
       query = query.order('likes_count', { ascending: false }).order('created_at', { ascending: false });
     }
 
     const { data } = await query;
 
     if (data) {
-      // For "hot" mode, score by engagement + recency
       let sorted = data;
+
+      // Filter by selected tag
+      if (selectedTag) {
+        sorted = sorted.filter(p => p.content?.toLowerCase().includes(`#${selectedTag.toLowerCase()}`));
+      }
+
       if (sortMode === 'hot') {
-        sorted = [...data].sort((a, b) => {
+        sorted = [...sorted].sort((a, b) => {
           const hoursA = (Date.now() - new Date(a.created_at).getTime()) / 3600000;
           const hoursB = (Date.now() - new Date(b.created_at).getTime()) / 3600000;
           const scoreA = ((a.likes_count || 0) + (a.comments_count || 0) * 2) / Math.pow(hoursA + 2, 1.5);
@@ -78,7 +101,7 @@ const Trending = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [user, sortMode]);
+  useEffect(() => { fetchData(); }, [user, sortMode, selectedTag]);
 
   const sortOptions: { key: SortMode; label: string; icon: React.ReactNode }[] = [
     { key: 'hot', label: 'Resonating', icon: <Flame className="h-4 w-4" /> },
@@ -86,16 +109,23 @@ const Trending = () => {
     { key: 'recent', label: 'Fresh', icon: <Clock className="h-4 w-4" /> },
   ];
 
+  const formatCount = (n: number) => {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toString();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         {/* Header */}
         <Card className="border-primary/20 overflow-hidden">
-          <div className="h-24 echo-gradient flex items-center justify-center relative">
+          <div className="h-28 echo-gradient flex items-center justify-center relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_60%)]" />
             <div className="flex items-center gap-3 z-10">
-              <TrendingUp className="h-8 w-8 text-primary-foreground" />
+              <div className="h-14 w-14 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
+                <TrendingUp className="h-8 w-8 text-primary-foreground" />
+              </div>
               <div>
                 <h1 className="text-2xl font-bold text-primary-foreground">Trending Echoes</h1>
                 <p className="text-primary-foreground/70 text-sm">Discover what's resonating across the verse</p>
@@ -121,6 +151,44 @@ const Trending = () => {
           </CardContent>
         </Card>
 
+        {/* Popular Tags */}
+        {topTags.length > 0 && (
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Hash className="h-4 w-4 text-primary" />
+                Trending Tags
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-3">
+              <div className="flex flex-wrap gap-2">
+                {topTags.map(t => (
+                  <button
+                    key={t.tag}
+                    onClick={() => setSelectedTag(selectedTag === t.tag ? null : t.tag)}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      selectedTag === t.tag
+                        ? 'echo-gradient text-primary-foreground shadow-md'
+                        : 'bg-muted hover:bg-accent text-foreground'
+                    }`}
+                  >
+                    <Hash className="h-3 w-3" />
+                    {t.tag}
+                    <span className={`ml-1 ${selectedTag === t.tag ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                      {formatCount(t.count)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {selectedTag && (
+                <button onClick={() => setSelectedTag(null)} className="text-xs text-primary hover:underline mt-2">
+                  Clear filter
+                </button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Posts */}
         {loading ? (
           <div className="flex justify-center py-12">
@@ -129,16 +197,23 @@ const Trending = () => {
         ) : posts.length === 0 ? (
           <Card className="shadow-md">
             <CardContent className="py-12 text-center text-muted-foreground">
-              No trending echoes yet. Start the resonance!
+              {selectedTag ? `No echoes with #${selectedTag} yet.` : 'No trending echoes yet. Start the resonance!'}
             </CardContent>
           </Card>
         ) : (
           posts.map((post, i) => (
             <div key={post.id} className="relative">
               {i < 3 && (
-                <Badge className="absolute -top-2 -left-2 z-10 echo-gradient text-primary-foreground border-0 text-xs px-2">
-                  #{i + 1}
-                </Badge>
+                <div className="absolute -top-2 -left-2 z-10">
+                  <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold shadow-lg ${
+                    i === 0 ? 'bg-yellow-500 text-yellow-950' :
+                    i === 1 ? 'bg-gray-300 text-gray-800' :
+                    'bg-amber-700 text-amber-50'
+                  }`}>
+                    #{i + 1}
+                    {i === 0 && ' 🏆'}
+                  </div>
+                </div>
               )}
               <PostCard post={post} onUpdate={fetchData} friends={friendIds} friendProfiles={friendProfiles} />
             </div>

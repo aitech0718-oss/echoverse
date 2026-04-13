@@ -5,12 +5,16 @@ import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Globe, Users, Lock, Eye, Volume2, MessageCircle, Shield } from 'lucide-react';
+import { Globe, Users, Lock, Eye, Volume2, MessageCircle, Shield, AlertTriangle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
 
 const PrivacySettings = () => {
-  const { user } = useAuth();
+  const { user, warnings } = useAuth();
   const [settings, setSettings] = useState<any>(null);
+  const [showAllWarnings, setShowAllWarnings] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -26,12 +30,6 @@ const PrivacySettings = () => {
     toast.success('Echo settings updated');
   };
 
-  const visibilityIcon = (val: string) => {
-    if (val === 'public') return <Globe className="h-4 w-4 text-green-500" />;
-    if (val === 'friends') return <Users className="h-4 w-4 text-blue-500" />;
-    return <Lock className="h-4 w-4 text-destructive" />;
-  };
-
   const visibilityBadge = (val: string) => {
     if (val === 'public') return <Badge variant="outline" className="text-green-500 border-green-500/30 bg-green-500/10 text-xs">Public</Badge>;
     if (val === 'friends') return <Badge variant="outline" className="text-blue-500 border-blue-500/30 bg-blue-500/10 text-xs">Resonators</Badge>;
@@ -43,6 +41,8 @@ const PrivacySettings = () => {
 
   if (!settings) return <div className="min-h-screen bg-background"><Navbar /><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></div>;
 
+  const displayedWarnings = showAllWarnings ? warnings : warnings.slice(0, 3);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -53,6 +53,61 @@ const PrivacySettings = () => {
         </div>
         <p className="text-sm text-muted-foreground">Control who can see and interact with your verse</p>
 
+        {/* Warnings History Section */}
+        {warnings.length > 0 && (
+          <Card className="border-yellow-500/30 shadow-sm">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  <CardTitle className="text-base">Admin Warnings</CardTitle>
+                </div>
+                <Badge variant="outline" className={`text-xs ${warnings.length >= 3 ? 'border-destructive/50 text-destructive bg-destructive/10' : 'border-yellow-500/50 text-yellow-600 bg-yellow-500/10'}`}>
+                  {warnings.length}/3
+                </Badge>
+              </div>
+              <CardDescription className="text-xs">
+                {warnings.length >= 3
+                  ? 'Your account has been auto-suspended due to 3+ warnings'
+                  : `${3 - warnings.length} warning${3 - warnings.length !== 1 ? 's' : ''} remaining before auto-suspension`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {displayedWarnings.map((w: any, i: number) => (
+                <div key={w.id} className="flex gap-3 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                  <div className="flex flex-col items-center">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                      i === 0 && warnings.indexOf(w) === 0 ? 'bg-yellow-500 text-yellow-950' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {warnings.indexOf(w) + 1}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{w.reason}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(w.created_at), 'MMM d, yyyy')} · {formatDistanceToNow(new Date(w.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {warnings.length > 3 && (
+                <button
+                  onClick={() => setShowAllWarnings(!showAllWarnings)}
+                  className="w-full flex items-center justify-center gap-1 text-xs text-primary hover:underline py-1"
+                >
+                  {showAllWarnings ? <><ChevronUp className="h-3 w-3" /> Show less</> : <><ChevronDown className="h-3 w-3" /> Show all {warnings.length} warnings</>}
+                </button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <Separator />
+
+        {/* Privacy Controls */}
         <Card className="shadow-sm">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">

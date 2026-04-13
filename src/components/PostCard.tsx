@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, Flag, MoreHorizontal, Trash2, Volume2, Download, Send, Copy, SmilePlus, Reply } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Flag, MoreHorizontal, Trash2, Volume2, Download, Send, Copy, SmilePlus, Reply, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -37,6 +37,7 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
   const { user } = useAuth();
   const [liked, setLiked] = useState(post.user_liked || false);
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
+  const [viewsCount, setViewsCount] = useState(post.views_count || 0);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -48,6 +49,17 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [reactions, setReactions] = useState<any[]>(post.reactions || []);
   const [commentReactions, setCommentReactions] = useState<Record<string, any[]>>({});
+
+  // Track view on mount
+  useEffect(() => {
+    const trackView = async () => {
+      try {
+        await supabase.rpc('increment_view_count', { p_post_id: post.id });
+        setViewsCount((c: number) => c + 1);
+      } catch {}
+    };
+    trackView();
+  }, [post.id]);
 
   const initials = post.profiles?.display_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'U';
 
@@ -102,7 +114,6 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
       .eq('post_id', post.id)
       .order('created_at', { ascending: true });
     setComments(data || []);
-    // Load reactions for all comments
     if (data && data.length > 0) {
       const commentIds = data.map(c => c.id);
       const { data: cReactions } = await supabase.from('reactions').select('*').in('comment_id', commentIds);
@@ -203,6 +214,13 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
     }
   };
 
+  // Format view count nicely
+  const formatCount = (n: number) => {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toString();
+  };
+
   // Group reactions by emoji
   const reactionCounts: Record<string, { count: number; userReacted: boolean }> = {};
   reactions.forEach(r => {
@@ -215,6 +233,18 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
   const topLevelComments = comments.filter(c => !c.parent_id);
   const replies = comments.filter(c => c.parent_id);
   const getReplies = (parentId: string) => replies.filter(r => r.parent_id === parentId);
+
+  // Extract hashtags from content for display
+  const renderContent = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(#\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('#')) {
+        return <span key={i} className="text-primary font-medium hover:underline cursor-pointer">{part}</span>;
+      }
+      return part;
+    });
+  };
 
   const CommentItem = ({ c, isReply = false }: { c: any; isReply?: boolean }) => {
     const cReactionCounts: Record<string, { count: number; userReacted: boolean }> = {};
@@ -286,6 +316,9 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Volume2 className="h-3 w-3" />
               echoed {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+              <span className="mx-1">·</span>
+              <Eye className="h-3 w-3" />
+              <span>{formatCount(viewsCount)}</span>
             </p>
           </div>
           {user && (
@@ -299,7 +332,7 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
           )}
         </CardHeader>
         <CardContent className="pb-3">
-          {post.content && <p className="text-sm whitespace-pre-wrap mb-3">{post.content}</p>}
+          {post.content && <p className="text-sm whitespace-pre-wrap mb-3">{renderContent(post.content)}</p>}
           {post.image_url && (
             <div className="relative group">
               <img src={post.image_url} alt="Echo media" className="rounded-xl w-full max-h-96 object-cover" />
@@ -309,7 +342,6 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
               </Button>
             </div>
           )}
-          {/* Emoji Reactions display */}
           {Object.keys(reactionCounts).length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {Object.entries(reactionCounts).map(([emoji, data]) => (
@@ -376,6 +408,11 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
                 )}
               </PopoverContent>
             </Popover>
+            {/* View count display */}
+            <div className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+              <Eye className="h-3.5 w-3.5" />
+              <span>{formatCount(viewsCount)}</span>
+            </div>
           </div>
           {showComments && (
             <div className="w-full space-y-3 animate-fade-in">
