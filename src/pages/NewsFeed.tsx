@@ -135,13 +135,6 @@ const NewsFeed = () => {
 
   const initials = profile?.display_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'U';
 
-  // Show most recent unread warnings
-  const recentWarnings = warnings.filter(w => {
-    const created = new Date(w.created_at);
-    const dayAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    return created > dayAgo;
-  });
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -155,14 +148,8 @@ const NewsFeed = () => {
           </Alert>
         )}
 
-        {/* Warning Banners */}
-        {recentWarnings.map(w => (
-          <Alert key={w.id} className="border-yellow-500/50 bg-yellow-500/5">
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-            <AlertTitle className="text-yellow-600">Admin Warning ({warnings.length}/3)</AlertTitle>
-            <AlertDescription className="text-sm">{w.reason}</AlertDescription>
-          </Alert>
-        ))}
+        {/* Warning Banner - shows for 1 hour after issued */}
+        <WarningBanner />
 
         {/* Echo Composer */}
         {!isSuspended && (
