@@ -195,7 +195,7 @@ const NewsFeed = () => {
         ) : posts.length === 0 ? (
           <Card className="shadow-md"><CardContent className="py-12 text-center text-muted-foreground">No echoes yet. Be the first to send one into the verse!</CardContent></Card>
         ) : (
-          posts.map(post => <PostCard key={post.id} post={post} onUpdate={fetchPosts} friends={friendIds} />)
+          posts.map(post => <PostCard key={post.id} post={post} onUpdate={fetchPosts} friends={friendIds} friendProfiles={friendProfiles} />)
         )}
       </main>
     </div>
