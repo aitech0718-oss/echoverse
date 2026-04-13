@@ -113,9 +113,19 @@ const NewsFeed = () => {
       }
     }
 
-    const { error } = await supabase.from('posts').insert({ author_id: user.id, content: content.trim(), image_url });
+    const { error, data: newPost } = await supabase.from('posts').insert({ author_id: user.id, content: content.trim(), image_url }).select().single();
     setPosting(false);
     if (error) { toast.error('Failed to send your echo'); return; }
+
+    // Extract and save hashtags
+    if (newPost) {
+      const tags = content.match(/#(\w+)/g);
+      if (tags && tags.length > 0) {
+        const hashtagRows = tags.map(t => ({ tag: t.replace('#', '').toLowerCase(), post_id: newPost.id }));
+        await supabase.from('hashtags').insert(hashtagRows);
+      }
+    }
+
     setContent('');
     setImageFile(null);
     setImagePreview(null);
