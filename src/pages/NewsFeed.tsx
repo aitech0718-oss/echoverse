@@ -8,8 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ImagePlus, X, Send, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { ImagePlus, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import WarningBanner from '@/components/WarningBanner';
 
 const NewsFeed = () => {
   const { user, profile, warnings } = useAuth();
@@ -112,9 +114,19 @@ const NewsFeed = () => {
       }
     }
 
-    const { error } = await supabase.from('posts').insert({ author_id: user.id, content: content.trim(), image_url });
+    const { error, data: newPost } = await supabase.from('posts').insert({ author_id: user.id, content: content.trim(), image_url }).select().single();
     setPosting(false);
     if (error) { toast.error('Failed to send your echo'); return; }
+
+    // Extract and save hashtags
+    if (newPost) {
+      const tags = content.match(/#(\w+)/g);
+      if (tags && tags.length > 0) {
+        const hashtagRows = tags.map(t => ({ tag: t.replace('#', '').toLowerCase(), post_id: newPost.id }));
+        await supabase.from('hashtags').insert(hashtagRows);
+      }
+    }
+
     setContent('');
     setImageFile(null);
     setImagePreview(null);
@@ -122,13 +134,6 @@ const NewsFeed = () => {
   };
 
   const initials = profile?.display_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'U';
-
-  // Show most recent unread warnings
-  const recentWarnings = warnings.filter(w => {
-    const created = new Date(w.created_at);
-    const dayAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    return created > dayAgo;
-  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -143,14 +148,8 @@ const NewsFeed = () => {
           </Alert>
         )}
 
-        {/* Warning Banners */}
-        {recentWarnings.map(w => (
-          <Alert key={w.id} className="border-yellow-500/50 bg-yellow-500/5">
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-            <AlertTitle className="text-yellow-600">Admin Warning ({warnings.length}/3)</AlertTitle>
-            <AlertDescription className="text-sm">{w.reason}</AlertDescription>
-          </Alert>
-        ))}
+        {/* Warning Banner - shows for 1 hour after issued */}
+        <WarningBanner />
 
         {/* Echo Composer */}
         {!isSuspended && (

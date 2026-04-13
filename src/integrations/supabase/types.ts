@@ -129,6 +129,27 @@ export type Database = {
           },
         ]
       }
+      hashtags: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          tag: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          tag: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          tag?: string
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           created_at: string
@@ -261,6 +282,7 @@ export type Database = {
           shares_count: number | null
           updated_at: string
           video_url: string | null
+          views_count: number | null
           visibility: string
         }
         Insert: {
@@ -275,6 +297,7 @@ export type Database = {
           shares_count?: number | null
           updated_at?: string
           video_url?: string | null
+          views_count?: number | null
           visibility?: string
         }
         Update: {
@@ -289,6 +312,7 @@ export type Database = {
           shares_count?: number | null
           updated_at?: string
           video_url?: string | null
+          views_count?: number | null
           visibility?: string
         }
         Relationships: [
@@ -546,6 +570,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_view_count: { Args: { p_post_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "user" | "admin"
