@@ -20,6 +20,7 @@ const NewsFeed = () => {
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [friendIds, setFriendIds] = useState<string[]>([]);
+  const [friendProfiles, setFriendProfiles] = useState<Record<string, { display_name: string; avatar_url: string | null }>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isSuspended = profile?.is_suspended;
