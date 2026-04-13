@@ -30,9 +30,10 @@ interface PostCardProps {
   post: any;
   onUpdate?: () => void;
   friends?: string[];
+  friendProfiles?: Record<string, { display_name: string; avatar_url: string | null }>;
 }
 
-const PostCard = ({ post, onUpdate, friends = [] }: PostCardProps) => {
+const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCardProps) => {
   const { user } = useAuth();
   const [liked, setLiked] = useState(post.user_liked || false);
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
@@ -355,13 +356,21 @@ const PostCard = ({ post, onUpdate, friends = [] }: PostCardProps) => {
                   <>
                     <div className="border-t my-1" />
                     <p className="text-[10px] text-muted-foreground px-2 py-1">Send to Resonator</p>
-                    <div className="max-h-32 overflow-y-auto">
-                      {friends.map(fId => (
-                        <button key={fId} onClick={() => handleSendToFriend(fId)}
-                          className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-accent text-sm">
-                          <Send className="h-3 w-3" /> {fId.substring(0, 8)}...
-                        </button>
-                      ))}
+                    <div className="max-h-40 overflow-y-auto space-y-0.5">
+                      {friends.map(fId => {
+                        const fp = friendProfiles[fId];
+                        return (
+                          <button key={fId} onClick={() => handleSendToFriend(fId)}
+                            className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-accent text-sm">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={fp?.avatar_url || ''} />
+                              <AvatarFallback className="text-[10px] bg-muted">{fp?.display_name?.[0] || '?'}</AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{fp?.display_name || 'Unknown'}</span>
+                            <Send className="h-3 w-3 ml-auto shrink-0 text-muted-foreground" />
+                          </button>
+                        );
+                      })}
                     </div>
                   </>
                 )}

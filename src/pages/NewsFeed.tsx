@@ -20,6 +20,7 @@ const NewsFeed = () => {
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [friendIds, setFriendIds] = useState<string[]>([]);
+  const [friendProfiles, setFriendProfiles] = useState<Record<string, { display_name: string; avatar_url: string | null }>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isSuspended = profile?.is_suspended;
@@ -33,6 +34,18 @@ const NewsFeed = () => {
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
     const ids = (data || []).map(f => f.requester_id === user.id ? f.addressee_id : f.requester_id);
     setFriendIds(ids);
+
+    // Fetch profiles for friends
+    if (ids.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url')
+        .in('user_id', ids);
+      const map: Record<string, { display_name: string; avatar_url: string | null }> = {};
+      (profiles || []).forEach(p => { map[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url }; });
+      setFriendProfiles(map);
+    }
+
     return ids;
   };
 
@@ -182,7 +195,7 @@ const NewsFeed = () => {
         ) : posts.length === 0 ? (
           <Card className="shadow-md"><CardContent className="py-12 text-center text-muted-foreground">No echoes yet. Be the first to send one into the verse!</CardContent></Card>
         ) : (
-          posts.map(post => <PostCard key={post.id} post={post} onUpdate={fetchPosts} friends={friendIds} />)
+          posts.map(post => <PostCard key={post.id} post={post} onUpdate={fetchPosts} friends={friendIds} friendProfiles={friendProfiles} />)
         )}
       </main>
     </div>
