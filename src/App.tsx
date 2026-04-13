@@ -16,6 +16,7 @@ import Chat from "@/pages/Chat";
 import Notifications from "@/pages/Notifications";
 import PrivacySettings from "@/pages/PrivacySettings";
 import AdminDashboard from "@/pages/AdminDashboard";
+import Trending from "@/pages/Trending";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/privacy" element={<ProtectedRoute><PrivacySettings /></ProtectedRoute>} />
+            <Route path="/trending" element={<ProtectedRoute><Trending /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
