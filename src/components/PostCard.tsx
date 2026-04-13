@@ -30,9 +30,10 @@ interface PostCardProps {
   post: any;
   onUpdate?: () => void;
   friends?: string[];
+  friendProfiles?: Record<string, { display_name: string; avatar_url: string | null }>;
 }
 
-const PostCard = ({ post, onUpdate, friends = [] }: PostCardProps) => {
+const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCardProps) => {
   const { user } = useAuth();
   const [liked, setLiked] = useState(post.user_liked || false);
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
