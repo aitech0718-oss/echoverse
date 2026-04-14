@@ -15,6 +15,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
+// Track which posts have been viewed this session to avoid inflating counts
+const viewedPostIds = new Set<string>();
+
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
 const REPORT_REASONS = [
