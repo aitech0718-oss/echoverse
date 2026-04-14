@@ -15,6 +15,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
+// Track which posts have been viewed this session to avoid inflating counts
+const viewedPostIds = new Set<string>();
+
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
 const REPORT_REASONS = [
@@ -50,8 +53,10 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
   const [reactions, setReactions] = useState<any[]>(post.reactions || []);
   const [commentReactions, setCommentReactions] = useState<Record<string, any[]>>({});
 
-  // Track view on mount
+  // Track view on mount - only once per post per session
   useEffect(() => {
+    if (viewedPostIds.has(post.id)) return;
+    viewedPostIds.add(post.id);
     const trackView = async () => {
       try {
         await supabase.rpc('increment_view_count', { p_post_id: post.id });
