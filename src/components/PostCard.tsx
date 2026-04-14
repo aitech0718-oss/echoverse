@@ -50,8 +50,10 @@ const PostCard = ({ post, onUpdate, friends = [], friendProfiles = {} }: PostCar
   const [reactions, setReactions] = useState<any[]>(post.reactions || []);
   const [commentReactions, setCommentReactions] = useState<Record<string, any[]>>({});
 
-  // Track view on mount
+  // Track view on mount - only once per post per session
   useEffect(() => {
+    if (viewedPostIds.has(post.id)) return;
+    viewedPostIds.add(post.id);
     const trackView = async () => {
       try {
         await supabase.rpc('increment_view_count', { p_post_id: post.id });
